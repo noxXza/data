@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Server Monitor</title>
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+html, body {
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #fff;
+    touch-action: manipulation;
+    overflow: hidden;
+}
+.wrapper {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 12px;
+}
+.card {
+    background: linear-gradient(160deg, rgba(10,14,26,0.98), rgba(15,20,35,0.98));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 2px solid rgba(59, 130, 246, 0.5);
+    border-radius: 24px;
+    padding: 18px 16px 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8), inset 0 0 60px rgba(59,130,246,0.04);
+    position: relative;
+    overflow: hidden;
+}
+.card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(59,130,246,0.06), transparent 60%);
+    pointer-events: none;
+}
+
+/* ── HEADER ── */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.title .badge {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.8px;
+    color: #60a5fa;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(96,165,250,0.3);
+}
+.title .dot-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.title .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 14px rgba(16,185,129,0.6);
+    animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.85); }
+}
+.title .live-text {
+    font-size: 8px;
+    font-weight: 700;
+    color: #10b981;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: rgba(16,185,129,0.12);
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(16,185,129,0.2);
+}
+.latency {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    background: rgba(255,255,255,0.04);
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.latency .ping {
+    color: #60a5fa;
+    font-weight: 800;
+}
+
+/* ── SUBHEADER ── */
+.subheader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 4px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.subheader .monitor-label {
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    color: #60a5fa;
+}
+.subheader .monitor-label span {
+    color: #94a3b8;
+    font-weight: 400;
+}
+.subheader .time {
+    color: #475569;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── UPTIME ── */
+.uptime-section {
+    margin: 10px 0 8px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.uptime-section .uptime-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    padding: 2px 0;
+}
+.uptime-section .uptime-row .label {
+    color: #94a3b8;
+    font-weight: 500;
+}
+.uptime-section .uptime-row .value {
+    color: #e2e8f0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.uptime-section .uptime-row .value.highlight {
+    color: #60a5fa;
+}
+.uptime-section .uptime-row .value.green {
+    color: #10b981;
+}
+
+/* ── SECTION LABEL ── */
+.section-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: #475569;
+    text-transform: uppercase;
+    margin: 10px 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.04);
+}
+
+/* ── STATS GRID (2 kolom untuk info) ── */
+.stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+.stat-item:last-child,
+.stat-item.full-row {
+    border-bottom: none;
+}
+.stat-item .label {
+    color: #94a3b8;
+    font-weight: 500;
+    font-size: 10px;
+}
+.stat-item .value {
+    color: #e2e8f0;
+    font-weight: 700;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+.stat-item .value.highlight {
+    color: #60a5fa;
+}
+.stat-item .value.green {
+    color: #10b981;
+}
+.stat-item .value.yellow {
+    color: #f59e0b;
+}
+.stat-item .value.red {
+    color: #ef4444;
+}
+.stat-item .value.purple {
+    color: #a78bfa;
+}
+.stat-item .value.cyan {
+    color: #22d3ee;
+}
+.full-row {
+    grid-column: 1 / -1;
+}
+
+/* ── RESOURCE LIST (VERTIKAL, 1 KOLOM) ── */
+.resource-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 12px;
+    padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.resource-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 0;
+}
+.resource-item .label {
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 11px;
+    min-width: 60px;
+}
+.resource-item .bar-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.resource-item .progress-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.06);
+    overflow: hidden;
+}
+.resource-item .progress-bar .fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.8s ease;
+    width: 0%;
+}
+.resource-item .progress-bar .fill.green { background: #10b981; }
+.resource-item .progress-bar .fill.yellow { background: #f59e0b; }
+.resource-item .progress-bar .fill.red { background: #ef4444; }
+.resource-item .value {
+    font-weight: 700;
+    font-size: 12px;
+    min-width: 44px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.resource-item .value.green { color: #10b981; }
+.resource-item .value.yellow { color: #f59e0b; }
+.resource-item .value.red { color: #ef4444; }
+.resource-item .swap-value {
+    color: #a78bfa;
+    font-weight: 700;
+    font-size: 11px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── FOOTER ── */
+.footer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    color: #475569;
+}
+.footer .host {
+    color: #60a5fa;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.footer .host span {
+    color: #94a3b8;
+    font-weight: 400;
+}
+.footer .updated {
+    color: #475569;
+    font-weight: 500;
+}
+.footer .updated span {
+    color: #94a3b8;
+}
+
+/* ── STATUS BAR ── */
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding: 4px 0;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: #475569;
+    text-transform: uppercase;
+}
+.status-bar .left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.status-bar .dot-small {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+    animation: pulse-dot 1.6s ease-in-out infinite;
+}
+.status-bar .right {
+    color: #334155;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 380px) {
+    .wrapper { padding: 6px; }
+    .card { padding: 12px; }
+    .stat-grid { gap: 2px 8px; padding: 6px 8px; }
+    .stat-item { font-size: 10px; padding: 2px 0; }
+    .stat-item .label { font-size: 9px; }
+    .stat-item .value { font-size: 10px; }
+    .latency { font-size: 9px; padding: 2px 8px; }
+    .resource-item .label { font-size: 9px; min-width: 45px; }
+    .resource-item .value { font-size: 10px; min-width: 34px; }
+    .resource-item .progress-bar { height: 4px; }
+    .uptime-section { padding: 6px 10px; }
+    .uptime-section .uptime-row { font-size: 10px; }
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<div class="card">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="title">
+            <div class="dot-wrap">
+                <span class="dot"></span>
+                <span class="badge">SERVER LIVE</span>
+            </div>
+            <span class="live-text">● LIVE</span>
+        </div>
+        <div class="latency">
+            ⚡ <span class="ping">{{LATENCY}}</span> ms
+        </div>
+    </div>
+
+    <!-- SUBHEADER -->
+    <div class="subheader">
+        <span class="monitor-label">REALTIME MONITOR <span>·</span></span>
+        <span class="time">{{TIMESTAMP}}</span>
+    </div>
+
+    <!-- UPTIME -->
+    <div class="uptime-section">
+        <div class="uptime-row">
+            <span class="label">🕒 BOT UPTIME – BERJALAN REALTIME</span>
+            <span class="value highlight">{{BOT_UPTIME}}</span>
+        </div>
+        <div class="uptime-row">
+            <span class="label">system</span>
+            <span class="value green">{{SYSTEM_UPTIME}}</span>
+        </div>
+    </div>
+
+    <!-- RESOURCE (VERTIKAL 1 KOLOM) -->
+    <div class="section-label">📊 SISTEM RESOURCE</div>
+    <div class="resource-list">
+        <div class="resource-item">
+            <span class="label">CPU LOAD</span>
+            <div class="bar-wrap">
+                <div class="progress-bar"><div class="fill {{CPU_CLASS}}" style="width:{{CPU_LOAD}}%"></div></div>
+                <span class="value {{CPU_CLASS}}">{{CPU_LOAD}}%</span>
+            </div>
+        </div>
+        <div class="resource-item">
+            <span class="label">RAM</span>
+            <div class="bar-wrap">
+                <div class="progress-bar"><div class="fill {{RAM_CLASS}}" style="width:{{RAM_PERCENT}}%"></div></div>
+                <span class="value {{RAM_CLASS}}">{{RAM_PERCENT}}%</span>
+            </div>
+        </div>
+        <div class="resource-item">
+            <span class="label">DISK</span>
+            <div class="bar-wrap">
+                <div class="progress-bar"><div class="fill {{DISK_CLASS}}" style="width:{{DISK_PERCENT}}%"></div></div>
+                <span class="value {{DISK_CLASS}}">{{DISK_PERCENT}}%</span>
+            </div>
+        </div>
+        <div class="resource-item">
+            <span class="label">SWAP</span>
+            <div class="bar-wrap" style="justify-content:flex-end;">
+                <span class="swap-value">{{SWAP_INFO}}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- SYSTEM INFO (2 KOLOM) -->
+    <div class="section-label">🖥️ SISTEM INFO</div>
+    <div class="stat-grid">
+        <div class="stat-item">
+            <span class="label">OS</span>
+            <span class="value cyan">{{OS}}</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">ARCH</span>
+            <span class="value">{{ARCH}}</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">CPU</span>
+            <span class="value">{{CPU_CORES}} core</span>
+        </div>
+        <div class="stat-item">
+            <span class="label">IP PRIMER</span>
+            <span class="value highlight">{{IP}}</span>
+        </div>
+        <div class="stat-item full-row">
+            <span class="label">📦 HEAP / RSS</span>
+            <span class="value">{{HEAP_USED}} MB / {{RSS}} MB</span>
+        </div>
+        <div class="stat-item full-row">
+            <span class="label">⚡ RUNTIME</span>
+            <span class="value" style="font-size:10px;color:#94a3b8;">{{RUNTIME}}</span>
+        </div>
+    </div>
+
+    <!-- STATUS BAR -->
+    <div class="status-bar">
+        <div class="left">
+            <span class="dot-small"></span>
+            <span>uptime realtime · monitor bernafas</span>
+        </div>
+        <span class="right">kirim sekali</span>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+        <span class="host">data monitor · <span>{{HOSTNAME}}</span></span>
+        <span class="updated">diperbarui <span>{{UPDATED_AGO}}</span> dkt lalu</span>
+    </div>
+
+</div>
+</div>
+</body>
+</html>
